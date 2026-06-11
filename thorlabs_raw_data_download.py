@@ -3,8 +3,8 @@ AI Summary:
 Given a Thorlabs part number:
   1. Goes to the product page (thorlabs.com/item/(part number here))
   2. Clicks the "Product Family" link
-  3. On the family page, finds the "Click Here for Raw Data" xlsx link
-  4. Downloads and saves the xlsx file
+  3. On the family page, finds the correct "Click Here for Raw Data" xlsx link
+  4. Downloads and saves the xlsx file locally for use later
 
 Requirements:
     pip install playwright requests
@@ -17,8 +17,12 @@ Usage example:
 
 """
 
+'''
+note to future self, pls choose either to use argv or input() not both, gets messy
+'''
+
 import os #to communicate with parent OS
-import re #for RegEX shit
+import re #for RegEX stuff
 import sys
 
 import requests
@@ -26,19 +30,24 @@ from playwright.sync_api import sync_playwright
 
 
 def get_raw_data(part_number: str, save_dir: str = ".") -> str | None:
-    product_url = f"https://www.thorlabs.com/item/{part_number}"
+    #same url regardless of part type im pretty sure
+    product_url = f"https://www.thorlabs.com/item/{part_number}" 
 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
         page = browser.new_page()
 
-        # ── Step 1: Load the product page ────────────────────────────────────
-        print(f"[1/3] Loading product page for '{part_number}'...")
+        #check for second user inputting arg, and if so store it in dis thing
+        requested_wavelength = sys.argv[2] if len(sys.argv) > 2 else None   
+
+
+        #part 1, grab the product pg
+        print(f"[1/3] getting page for '{part_number}'")
         page.goto(product_url, timeout=30000)
         page.wait_for_load_state("networkidle", timeout=20000)
 
-        # ── Step 2: Find and click the "Product Family" link ─────────────────
-        print("[2/3] Looking for 'Product Family' link...")
+        # pt2, find the product family link and click it to get to the family page where the raw data usually is
+        print("[2/3] looking for 'Product Family' link")
 
         family_link = page.locator("a", has_text=re.compile(r"product family", re.IGNORECASE)).first
         if not family_link.is_visible():
@@ -49,16 +58,18 @@ def get_raw_data(part_number: str, save_dir: str = ".") -> str | None:
         family_href = family_link.get_attribute("href")
         print(f"         Found: {family_href}")
 
-        # Navigate to the family page
         page.goto(family_href if family_href.startswith("http") else f"https://www.thorlabs.com{family_href}", timeout=30000)
         page.wait_for_load_state("networkidle", timeout=20000)
 
-        # ── Step 3: Find the "Raw Data" xlsx link ────────────────────────────
-        print("[3/3] Looking for 'Raw Data' xlsx link on family page...")
+        #pt3 look for raw data link based on the wavelength user provided
+        print("[3/3] Looking for correct 'Raw Data' xlsx link on family page...")
 
         xlsx_url = None
 
-        # Look for an <a> whose text contains "raw data" and href ends in .xlsx
+        page_title = page.title().lower() if requested_wavelength else ""
+        page_headers = " ".join(page.locator("h1, h2, h3").all_text_contents()).lower() if requested_wavelength else ""
+        page_metadata = f"{page_title} {page_headers}"
+
         all_links = page.eval_on_selector_all(
             "a[href]",
             "els => els.map(e => ({ href: e.href, text: e.innerText.trim() }))"
@@ -66,18 +77,25 @@ def get_raw_data(part_number: str, save_dir: str = ".") -> str | None:
         for link in all_links:
             href = link.get("href", "")
             text = link.get("text", "").lower()
+            #literally scans for any link that has .xlsx in it, or has "raw" and "data" in the text. This is because thorlabs is inconsistent with how they label their raw data links across different product families
             if ".xlsx" in href.lower() or ("raw" in text and "data" in text):
+                if requested_wavelength:
+                    if requested_wavelength in text or requested_wavelength in href or requested_wavelength in page_metadata:
+                        xlsx_url = href
+                        print(f"         Found: {xlsx_url} with requested wavelength {requested_wavelength}")
+                        break
+                '''
                 xlsx_url = href
-                print(f"         Found: {xlsx_url}")
+                print(f"         Found: {xlsx_url}, ")
                 break
+                '''
 
-        # Fallback: regex scan of the raw HTML for any .xlsx URL
         if not xlsx_url:
             html = page.content()
             matches = re.findall(r'https?://[^\s"\'<>]+\.xlsx[^\s"\'<>]*', html, re.IGNORECASE)
             if matches:
                 xlsx_url = matches[0]
-                print(f"         Found via HTML scan: {xlsx_url}")
+                print(f"         Found via HTML scan: {xlsx_url} - NONIDEAL, MAY NOT BE CORRECT LINK PLEASE DOUBLE CHECK")
 
         browser.close()
 
@@ -85,7 +103,6 @@ def get_raw_data(part_number: str, save_dir: str = ".") -> str | None:
         print("[ERROR] No raw data xlsx link found on the family page.")
         return None
 
-    # ── Step 4: Download the file ─────────────────────────────────────────────
     print("\nDownloading xlsx...")
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
@@ -105,7 +122,21 @@ def get_raw_data(part_number: str, save_dir: str = ".") -> str | None:
     print(f"Saved to: {save_path}")
     return save_path
 
+def main():
+    if len(sys.argv) < 3:
+        print("Use it like dis: python thorlabs_lookup.py <PartNumber> <Wavelength>")
+        print("i.e.: python thorlabs_lookup.py WG12012 850")
+        sys.exit(1)
 
+    get_raw_data(sys.argv[1], int(sys.argv[2]))
+
+
+main()
+
+'''
+use this for when you want to run as script, 
+or want it to be importable as a module
+without running the main func immediately when u import it
 if __name__ == "__main__":
     if len(sys.argv) < 2:
         print("Usage:   python thorlabs_lookup.py <PartNumber>")
@@ -113,3 +144,4 @@ if __name__ == "__main__":
         sys.exit(1)
 
     get_raw_data(sys.argv[1])
+'''
