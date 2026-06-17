@@ -29,16 +29,17 @@ import requests
 from playwright.sync_api import sync_playwright
 
 
-def get_raw_data(part_number: str, save_dir: str = ".") -> str | None:
+def get_raw_data(
+    part_number: str,
+    requested_wavelength: str | None = None,
+    save_dir: str = ".",
+) -> str | None:
     #same url regardless of part type im pretty sure
     product_url = f"https://www.thorlabs.com/item/{part_number}" 
 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
         page = browser.new_page()
-
-        #check for second user inputting arg, and if so store it in dis thing
-        requested_wavelength = sys.argv[2] if len(sys.argv) > 2 else None   
 
 
         #part 1, grab the product pg
@@ -67,28 +68,116 @@ def get_raw_data(part_number: str, save_dir: str = ".") -> str | None:
         xlsx_url = None
 
         page_title = page.title().lower() if requested_wavelength else ""
-        page_headers = " ".join(page.locator("h1, h2, h3").all_text_contents()).lower() if requested_wavelength else ""
+        page_headers = " ".join(
+            page.locator("h1, h2, h3, h4, h5").all_text_contents()
+        ).lower() if requested_wavelength else ""
         page_metadata = f"{page_title} {page_headers}"
 
         all_links = page.eval_on_selector_all(
             "a[href]",
-            "els => els.map(e => ({ href: e.href, text: e.innerText.trim() }))"
+            """
+            els => els.map(e => {
+                const nearestBlock = e.closest('figure, p, div, li, td, section, article, span') || e.parentElement;
+                const blockText = nearestBlock ? nearestBlock.innerText.replace(/\\s+/g, ' ').trim() : '';
+                const figure = e.closest('figure');
+                const figureText = figure ? figure.innerText.replace(/\\s+/g, ' ').trim() : '';
+                const section = e.closest('section, article, div') || e.parentElement;
+                const headingText = section
+                    ? (section.querySelector('h1, h2, h3, h4, h5')?.innerText || '')
+                    : '';
+                return {
+                    href: e.href,
+                    text: e.innerText.trim(),
+                    blockText,
+                    figureText,
+                    headingText,
+                };
+            })
+            """
         )
+
+        def normalize_wavelength(value: str) -> float | None:
+            cleaned = re.sub(r"[^0-9.\-]", "", value)
+            if not cleaned:
+                return None
+            try:
+                return float(cleaned)
+            except ValueError:
+                return None
+
+        def extract_range_matches(text: str):
+            return re.findall(
+                r"(?:theoretical data from|from)?\s*([0-9.]+)\s*[-–]\s*([0-9.]+)\s*nm",
+                text,
+                re.IGNORECASE,
+            )
+
+        def range_contains_requested(text: str, requested: str) -> bool:
+            requested_num = normalize_wavelength(requested)
+            if requested_num is None:
+                return False
+
+            for start_str, end_str in extract_range_matches(text):
+                start_num = normalize_wavelength(start_str)
+                end_num = normalize_wavelength(end_str)
+                if start_num is not None and end_num is not None and start_num <= requested_num <= end_num:
+                    return True
+            return False
+
+        def extract_section_center_wavelength(text: str) -> float | None:
+            # Prefer nearby wavelength values in the section such as 1156 nm or 1550 nm
+            nums = re.findall(r"(?<!\d)([0-9]{3,4})\s*nm", text, re.IGNORECASE)
+            if not nums:
+                return None
+            values = []
+            for num_str in nums:
+                num = normalize_wavelength(num_str)
+                if num is not None and 100 <= num <= 3000:
+                    values.append(num)
+            if not values:
+                return None
+            return values[0]
+
+        def looks_like_xlsx_response(content: bytes, content_type: str) -> bool:
+            return (
+                content.startswith(b"PK\x03\x04")
+                or "spreadsheetml" in content_type.lower()
+                or content_type.lower().endswith("xlsx")
+            )
+
+        candidate_links = []
         for link in all_links:
             href = link.get("href", "")
-            text = link.get("text", "").lower()
-            #literally scans for any link that has .xlsx in it, or has "raw" and "data" in the text. This is because thorlabs is inconsistent with how they label their raw data links across different product families
-            if ".xlsx" in href.lower() or ("raw" in text and "data" in text):
-                if requested_wavelength:
-                    if requested_wavelength in text or requested_wavelength in href or requested_wavelength in page_metadata:
-                        xlsx_url = href
-                        print(f"         Found: {xlsx_url} with requested wavelength {requested_wavelength}")
-                        break
-                '''
-                xlsx_url = href
-                print(f"         Found: {xlsx_url}, ")
-                break
-                '''
+            if ".xlsx" not in href.lower():
+                continue
+
+            text = link.get("text", "")
+            block_text = link.get("blockText", "")
+            figure_text = link.get("figureText", "")
+            heading_text = link.get("headingText", "")
+            context_text = " ".join([text, block_text, figure_text, heading_text, page_title, page_headers])
+
+            if requested_wavelength:
+                requested_num = normalize_wavelength(requested_wavelength)
+                if requested_num is None:
+                    continue
+                range_match = range_contains_requested(context_text, requested_wavelength)
+                if range_match or requested_wavelength in context_text:
+                    center_wl = extract_section_center_wavelength(context_text)
+                    score = 0 if range_match else (abs(center_wl - requested_num) if center_wl is not None else float("inf"))
+                    candidate_links.append((score, href, context_text))
+            else:
+                candidate_links.append((0, href, context_text))
+
+        if requested_wavelength:
+            candidate_links.sort(key=lambda item: item[0])
+            if candidate_links:
+                xlsx_url = candidate_links[0][1]
+                print(f"         Found best match: {xlsx_url} with requested wavelength {requested_wavelength}")
+        else:
+            if candidate_links:
+                xlsx_url = candidate_links[0][1]
+                print(f"         Found: {xlsx_url}")
 
         if not xlsx_url:
             html = page.content()
@@ -108,13 +197,21 @@ def get_raw_data(part_number: str, save_dir: str = ".") -> str | None:
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
         "Referer": "https://www.thorlabs.com/",
     }
-    resp = requests.get(xlsx_url, headers=headers, timeout=20)
+    resp = requests.get(xlsx_url, headers=headers, timeout=30)
     resp.raise_for_status()
+
+    content_type = resp.headers.get("Content-Type", "")
+    if not looks_like_xlsx_response(resp.content, content_type):
+        print(
+            f"[ERROR] Downloaded content from {xlsx_url} does not look like an XLSX file "
+            f"(content-type: {content_type})"
+        )
+        return None
 
     filename = xlsx_url.split("/")[-1].split("?")[0]
     if not filename.lower().endswith(".xlsx"):
         filename = f"{part_number}_raw_data.xlsx"
-
+    print(filename)
     save_path = os.path.join(save_dir, filename)
     with open(save_path, "wb") as f:
         f.write(resp.content)
@@ -124,14 +221,18 @@ def get_raw_data(part_number: str, save_dir: str = ".") -> str | None:
 
 def main():
     if len(sys.argv) < 3:
-        print("Use it like dis: python thorlabs_lookup.py <PartNumber> <Wavelength>")
+        print("Use it like dis: python thorlabs_lookup.py <PartNumber> <Wavelength> [save_dir]")
         print("i.e.: python thorlabs_lookup.py WG12012 850")
         sys.exit(1)
 
-    get_raw_data(sys.argv[1], int(sys.argv[2]))
+    part_number = sys.argv[1]
+    requested_wavelength = sys.argv[2]
+    save_dir = sys.argv[3] if len(sys.argv) > 3 else "."
+    get_raw_data(part_number, requested_wavelength=requested_wavelength, save_dir=save_dir)
 
 
-main()
+if __name__ == "__main__":
+    main()
 
 '''
 use this for when you want to run as script, 
