@@ -29,7 +29,9 @@ def get_raw_data(
         family_href = family_link.get_attribute("href")
         page.goto(family_href if family_href.startswith("http") else f"https://www.thorlabs.com{family_href}", timeout=30000)
         page.wait_for_load_state("networkidle", timeout=20000)
-        page.
+        title_page = page.title()
+        print(f"you are on the page: {title_page}")
+
     browser.close()
 
 
