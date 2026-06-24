@@ -15,6 +15,10 @@ Usage example:
     ^^then, will download the raw data in the dir you are in
 
 
+download, sort by category (mirrors, filters, windows, lenses, other/misc)
+put repo folder into teams
+
+
 """
 
 '''
@@ -43,12 +47,12 @@ def get_raw_data(
 
 
         #part 1, grab the product pg
-        print(f"[1/3] getting page for '{part_number}'")
+        print(f"[1/3] page for '{part_number}'")
         page.goto(product_url, timeout=30000)
         page.wait_for_load_state("networkidle", timeout=20000)
 
         # pt2, find the product family link and click it to get to the family page where the raw data usually is
-        print("[2/3] looking for 'Product Family' link")
+        print("[2/3] finding prod family")
 
         family_link = page.locator("a", has_text=re.compile(r"product family", re.IGNORECASE)).first
         if not family_link.is_visible():
@@ -208,10 +212,11 @@ def get_raw_data(
         )
         return None
 
-    filename = xlsx_url.split("/")[-1].split("?")[0]
+    filename = f"{part_number}_raw_data_for_{requested_wavelength}.xlsx"
+    '''filename = xlsx_url.split("/")[-1].split("?")[0]
     if not filename.lower().endswith(".xlsx"):
-        filename = f"{part_number}_raw_data.xlsx"
-
+        filename = f"{part_number}_raw_data_for_{requested_wavelength}.xlsx"
+    '''
     save_path = os.path.join(str(save_dir), str(filename))
     with open(save_path, "wb") as f:
         f.write(resp.content)
