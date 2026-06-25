@@ -28,37 +28,79 @@ note to future self, pls choose either to use argv or input() not both, gets mes
 import os #to communicate with parent OS
 import re #for RegEX stuff
 import sys
+from urllib.parse import urlparse
 
 import requests
 from playwright.sync_api import sync_playwright
+
+
+def sanitize_filename_component(value: str | None, default: str = "unknown") -> str:
+    cleaned = re.sub(r"[^A-Za-z0-9._-]+", " ", str(value or default)).strip()
+    cleaned = re.sub(r"\s+", " ", cleaned)
+    return cleaned or default
+
+
+def build_family_name(family_href: str, page_title: str) -> str:
+    parsed = urlparse(family_href)
+    candidate = None
+    if parsed.path:
+        segments = [segment for segment in parsed.path.split("/") if segment]
+        if segments:
+            candidate = segments[-1]
+
+    if not candidate:
+        candidate = page_title
+
+    candidate = candidate.replace(".html", "")
+    return sanitize_filename_component(candidate.replace("-", " "), default="family")
+
+
+def build_wavelength_label(context_text: str, fallback_wavelength: str | None = None) -> str:
+    range_matches = re.findall(r"([0-9.]+)\s*[-–]\s*([0-9.]+)\s*nm", context_text, re.IGNORECASE)
+    if range_matches:
+        start, end = range_matches[0]
+        return f"{start}-{end} nm"
+
+    single_matches = re.findall(r"([0-9.]+)\s*nm", context_text, re.IGNORECASE)
+    if single_matches:
+        return f"{single_matches[0]} nm"
+
+    if fallback_wavelength:
+        return f"{fallback_wavelength} nm"
+
+    return "all"
 
 
 def get_raw_data(
     part_number: str,
     requested_wavelength: str | None = None,
     save_dir: str = ".",
-) -> str | None:
+) -> list[str]:
     #same url regardless of part type im pretty sure
-    product_url = f"https://www.thorlabs.com/item/{part_number}" 
+    product_url = f"https://www.thorlabs.com/item/{part_number}"
+
+    save_dir = str(save_dir)
+    os.makedirs(save_dir, exist_ok=True)
+
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        "Referer": "https://www.thorlabs.com/",
+    }
 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
         page = browser.new_page()
 
-
-        #part 1, grab the product pg
         print(f"[1/3] page for '{part_number}'")
         page.goto(product_url, timeout=30000)
         page.wait_for_load_state("networkidle", timeout=20000)
 
-        # pt2, find the product family link and click it to get to the family page where the raw data usually is
         print("[2/3] finding prod family")
-
         family_link = page.locator("a", has_text=re.compile(r"product family", re.IGNORECASE)).first
         if not family_link.is_visible():
             print("[ERROR] Could not find a 'Product Family' link on the product page.")
             browser.close()
-            return None
+            return []
 
         family_href = family_link.get_attribute("href")
         print(f"         Found: {family_href}")
@@ -66,16 +108,11 @@ def get_raw_data(
         page.goto(family_href if family_href.startswith("http") else f"https://www.thorlabs.com{family_href}", timeout=30000)
         page.wait_for_load_state("networkidle", timeout=20000)
 
-        #pt3 look for raw data link based on the wavelength user provided
-        print("[3/3] Looking for correct 'Raw Data' xlsx link on family page...")
+        print("[3/3] collecting xlsx links from family page...")
 
-        xlsx_url = None
-
-        page_title = page.title().lower() if requested_wavelength else ""
-        page_headers = " ".join(
-            page.locator("h1, h2, h3, h4, h5").all_text_contents()
-        ).lower() if requested_wavelength else ""
-        page_metadata = f"{page_title} {page_headers}"
+        page_title = page.title()
+        page_headers = " ".join(page.locator("h1, h2, h3, h4, h5").all_text_contents())
+        family_name = build_family_name(family_href if family_href else product_url, page_title)
 
         all_links = page.eval_on_selector_all(
             "a[href]",
@@ -100,48 +137,6 @@ def get_raw_data(
             """
         )
 
-        def normalize_wavelength(value: str) -> float | None:
-            cleaned = re.sub(r"[^0-9.\-]", "", value)
-            if not cleaned:
-                return None
-            try:
-                return float(cleaned)
-            except ValueError:
-                return None
-
-        def extract_range_matches(text: str):
-            return re.findall(
-                r"(?:theoretical data from|from)?\s*([0-9.]+)\s*[-–]\s*([0-9.]+)\s*nm",
-                text,
-                re.IGNORECASE,
-            )
-
-        def range_contains_requested(text: str, requested: str) -> bool:
-            requested_num = normalize_wavelength(requested)
-            if requested_num is None:
-                return False
-
-            for start_str, end_str in extract_range_matches(text):
-                start_num = normalize_wavelength(start_str)
-                end_num = normalize_wavelength(end_str)
-                if start_num is not None and end_num is not None and start_num <= requested_num <= end_num:
-                    return True
-            return False
-
-        def extract_section_center_wavelength(text: str) -> float | None:
-            # Prefer nearby wavelength values in the section such as 1156 nm or 1550 nm
-            nums = re.findall(r"(?<!\d)([0-9]{3,4})\s*nm", text, re.IGNORECASE)
-            if not nums:
-                return None
-            values = []
-            for num_str in nums:
-                num = normalize_wavelength(num_str)
-                if num is not None and 100 <= num <= 3000:
-                    values.append(num)
-            if not values:
-                return None
-            return values[0]
-
         def looks_like_xlsx_response(content: bytes, content_type: str) -> bool:
             return (
                 content.startswith(b"PK\x03\x04")
@@ -149,89 +144,81 @@ def get_raw_data(
                 or content_type.lower().endswith("xlsx")
             )
 
+        seen_urls = set()
+        downloaded_paths = []
         candidate_links = []
         for link in all_links:
-            href = link.get("href", "")
+            href = link.get("href", "") or ""
             if ".xlsx" not in href.lower():
                 continue
+
+            if href in seen_urls:
+                continue
+            seen_urls.add(href)
 
             text = link.get("text", "")
             block_text = link.get("blockText", "")
             figure_text = link.get("figureText", "")
             heading_text = link.get("headingText", "")
             context_text = " ".join([text, block_text, figure_text, heading_text, page_title, page_headers])
+            candidate_links.append((href, context_text))
 
-            if requested_wavelength:
-                requested_num = normalize_wavelength(requested_wavelength)
-                if requested_num is None:
-                    continue
-                range_match = range_contains_requested(context_text, requested_wavelength)
-                if range_match or requested_wavelength in context_text:
-                    center_wl = extract_section_center_wavelength(context_text)
-                    score = 0 if range_match else (abs(center_wl - requested_num) if center_wl is not None else float("inf"))
-                    candidate_links.append((score, href, context_text))
-            else:
-                candidate_links.append((0, href, context_text))
-
-        if requested_wavelength:
-            candidate_links.sort(key=lambda item: item[0])
-            if candidate_links:
-                xlsx_url = candidate_links[0][1]
-                print(f"         Found best match: {xlsx_url} with requested wavelength {requested_wavelength}")
-        else:
-            if candidate_links:
-                xlsx_url = candidate_links[0][1]
-                print(f"         Found: {xlsx_url}")
-
-        if not xlsx_url:
+        if not candidate_links:
             html = page.content()
             matches = re.findall(r'https?://[^\s"\'<>]+\.xlsx[^\s"\'<>]*', html, re.IGNORECASE)
-            if matches:
-                xlsx_url = matches[0]
-                print(f"         Found via HTML scan: {xlsx_url} - NONIDEAL, MAY NOT BE CORRECT LINK PLEASE DOUBLE CHECK")
+            for match in matches:
+                if match not in seen_urls:
+                    seen_urls.add(match)
+                    candidate_links.append((match, page_title))
+
+        if not candidate_links:
+            print("[ERROR] No raw data xlsx links found on the family page.")
+            browser.close()
+            return []
+
+        for xlsx_url, context_text in candidate_links:
+            wavelength_label = build_wavelength_label(context_text, requested_wavelength)
+            filename = f"{sanitize_filename_component(family_name)} {sanitize_filename_component(wavelength_label)}.xlsx"
+            save_path = os.path.join(save_dir, filename)
+
+            if os.path.exists(save_path):
+                print(f"Skipping existing file: {save_path}")
+                continue
+
+            print(f"Downloading: {xlsx_url}")
+            try:
+                resp = requests.get(xlsx_url, headers=headers, timeout=60)
+                resp.raise_for_status()
+            except requests.RequestException as exc:
+                print(f"[ERROR] Failed to download {xlsx_url}: {exc}")
+                continue
+
+            content_type = resp.headers.get("Content-Type", "")
+            if not looks_like_xlsx_response(resp.content, content_type):
+                print(
+                    f"[ERROR] Downloaded content from {xlsx_url} does not look like an XLSX file "
+                    f"(content-type: {content_type})"
+                )
+                continue
+
+            with open(save_path, "wb") as f:
+                f.write(resp.content)
+
+            print(f"Saved to: {save_path}")
+            downloaded_paths.append(save_path)
 
         browser.close()
 
-    if not xlsx_url:
-        print("[ERROR] No raw data xlsx link found on the family page.")
-        return None
-
-    print("\nDownloading xlsx...")
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-        "Referer": "https://www.thorlabs.com/",
-    }
-    resp = requests.get(xlsx_url, headers=headers, timeout=30)
-    resp.raise_for_status()
-
-    content_type = resp.headers.get("Content-Type", "")
-    if not looks_like_xlsx_response(resp.content, content_type):
-        print(
-            f"[ERROR] Downloaded content from {xlsx_url} does not look like an XLSX file "
-            f"(content-type: {content_type})"
-        )
-        return None
-
-    filename = f"{part_number}_raw_data_for_{requested_wavelength}.xlsx"
-    '''filename = xlsx_url.split("/")[-1].split("?")[0]
-    if not filename.lower().endswith(".xlsx"):
-        filename = f"{part_number}_raw_data_for_{requested_wavelength}.xlsx"
-    '''
-    save_path = os.path.join(str(save_dir), str(filename))
-    with open(save_path, "wb") as f:
-        f.write(resp.content)
-
-    print(f"Saved to: {save_path}")
-    return save_path
+    return downloaded_paths
 
 def main():
-    if len(sys.argv) < 3:
-        print("Use it like dis: python thorlabs_lookup.py <PartNumber> <Wavelength> [save_dir]")
+    if len(sys.argv) < 2:
+        print("Use it like dis: python thorlabs_lookup.py <PartNumber> [Wavelength] [save_dir]")
         print("i.e.: python thorlabs_lookup.py WG12012 850")
         sys.exit(1)
 
     part_number = sys.argv[1]
-    requested_wavelength = sys.argv[2]
+    requested_wavelength = sys.argv[2] if len(sys.argv) > 2 else None
     save_dir = sys.argv[3] if len(sys.argv) > 3 else "."
     get_raw_data(part_number, requested_wavelength=requested_wavelength, save_dir=save_dir)
 

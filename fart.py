@@ -230,6 +230,22 @@ def main():
         print("i.e.: python thorlabs_lookup.py WG12012 850")
         sys.exit(1)
 
+    category = input("Enter category (mirrors, filters, windows, lenses, misc): ").strip().lower()
+    if category not in ["mirrors", "filters", "windows", "lenses", "misc"]:
+        print("Invalid category. Please choose from: mirrors, filters, windows, lenses, misc.")
+        sys.exit(1)
+    match category:
+        case "lenses":
+            save_dir = "raw_data/lenses"
+        case "mirrors":
+            save_dir = "raw_data/mirrors"
+        case "filters":
+            save_dir = "raw_data/filters"
+        case "windows":
+            save_dir = "raw_data/windows"
+        case "misc":
+            save_dir = "raw_data/misc"
+            
     part_number = sys.argv[1]
     requested_wavelength = sys.argv[2]
     save_dir = sys.argv[3] if len(sys.argv) > 3 else "."
