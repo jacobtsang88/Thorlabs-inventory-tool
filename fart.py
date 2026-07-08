@@ -1,24 +1,5 @@
 """
-AI Summary:
-Given a Thorlabs part number:
-  1. Goes to the product page (thorlabs.com/item/(part number here))
-  2. Clicks the "Product Family" link
-  3. On the family page, finds the correct "Click Here for Raw Data" xlsx link
-  4. Downloads and saves the xlsx file locally for use later
-
-Requirements:
-    pip install playwright requests
-    python -m playwright install chromium
-
-Usage example:
-    python thorlabs_lookup.py WG12012
-    ^^then, will download the raw data in the dir you are in
-
-
-download, sort by category (mirrors, filters, windows, lenses, other/misc)
-put repo folder into teams
-
-
+debug file to test thorlabs raw data download script
 """
 
 '''
@@ -245,7 +226,7 @@ def main():
             save_dir = "raw_data/windows"
         case "misc":
             save_dir = "raw_data/misc"
-            
+
     part_number = sys.argv[1]
     requested_wavelength = sys.argv[2]
     save_dir = sys.argv[3] if len(sys.argv) > 3 else "."
