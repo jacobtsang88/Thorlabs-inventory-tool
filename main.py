@@ -64,7 +64,7 @@ def build_plot_series(parsed_spectra: dict, center_wavelength: float, span: floa
     return plot_series
 
 
-def main() -> None:
+def main():
     if len(sys.argv) > 1:
         target_dir = Path(sys.argv[1]).resolve()
     else:
