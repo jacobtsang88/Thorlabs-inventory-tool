@@ -3,17 +3,16 @@ use this program to find a product's product family.
 sort the repo by product family and wavelength instead.
 store the associated family product in it's own file for reference later.
 have main.py take in a product, wavelength, dir path
-
+REMINDER: check to see if we alr found product family for a certain product before scraping.
 '''
 
 import os #to communicate with parent OS
 import re #for RegEX stuff
 import sys
 from urllib.parse import urlparse
-
+import json
 import requests
 from playwright.sync_api import sync_playwright
-
 
 def find_product_family(part_number: str) -> str | None:
     product_url = f"https://www.thorlabs.com/item/{part_number}" 
@@ -43,6 +42,10 @@ def find_product_family(part_number: str) -> str | None:
             return product_family_name
 
     return None
+
+def store_file():
+    #store prod. fams in json file
+
 
 def main():
     if len(sys.argv) > 1:
