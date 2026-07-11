@@ -43,7 +43,7 @@ def find_product_family(part_number: str) -> str | None:
 
     return None
 
-def store_file(data_dir, part_num, wavelength, family_name, family_url):
+def store_file(data_dir, part_num, wavelength, family_name):
     #store prod. fams in json file
     os.makedirs(data_dir, exist_ok=True) #check if data_dir exists, if yes, then ok
     json_path = os.path.join(data_dir, "families.json")
@@ -58,7 +58,6 @@ def store_file(data_dir, part_num, wavelength, family_name, family_url):
     #add family name if not existing, append as dict then dumps later to turn into json
     if family_name not in families:
         families[family_name] = {
-            "family_url": family_url,
             "products": {}
         }
 
@@ -72,21 +71,30 @@ def store_file(data_dir, part_num, wavelength, family_name, family_url):
     
     #add wavelength to prod. if not there already
     if wavelength not in products[part_num]["wavelengths"]:
-        
+        products[part_num]["wavelengths"].append(wavelength)
+        products[part_num]["wavelengths"].sort()
 
+    #write back to json
+    with open(json_path, "w") as f:
+        json.dump(families, f, indent = 4)
+
+    print(f"saved to {json_path}.")
     
 
 
 def main():
-    if len(sys.argv) > 1:
+    if len(sys.argv) > 3:
         part_number = sys.argv[1]
+        wavelength = float(sys.argv[2])
+        data_dir = sys.argv[3]
         product_family = find_product_family(part_number)
         if product_family:
             print(f"Product family for '{part_number}': {product_family}")
+            store_file(data_dir, part_number, wavelength, product_family)
         else:
             print(f"Could not find product family for '{part_number}'.")
     else:
-        print("please input a product number as arg 1")
+        print("please input a product number, wavelength desired, and data_dir")
 
 if __name__ == "__main__":
     main()
