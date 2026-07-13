@@ -43,7 +43,7 @@ def find_product_family(part_number: str) -> str | None:
 
     return None
 
-def store_file(data_dir, part_num, wavelength, family_name):
+def store_file(data_dir, part_num, wavelength: int, family_name):
     #store prod. fams in json file
     os.makedirs(data_dir, exist_ok=True) #check if data_dir exists, if yes, then ok
     json_path = os.path.join(data_dir, "families.json")
@@ -65,7 +65,7 @@ def store_file(data_dir, part_num, wavelength, family_name):
     products = families[family_name]["products"]
     if part_num not in products:
         products[part_num] = {
-            "wavelengths" : wavelength,
+            "wavelengths" : [wavelength],
             "data_file" : None
         }
     
@@ -77,6 +77,7 @@ def store_file(data_dir, part_num, wavelength, family_name):
     #write back to json
     with open(json_path, "w") as f:
         json.dump(families, f, indent = 4)
+
 
     print(f"saved to {json_path}.")
     
