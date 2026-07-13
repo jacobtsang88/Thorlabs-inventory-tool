@@ -65,6 +65,7 @@ def build_plot_series(parsed_spectra: dict, center_wavelength: float, span: floa
 
 
 def main():
+    #arg 2 is target dir
     if len(sys.argv) > 1:
         target_dir = Path(sys.argv[1]).resolve()
     else:
@@ -75,12 +76,12 @@ def main():
         sys.exit(1)
 
     product_filter = sys.argv[2] if len(sys.argv) > 2 else None
-
+    #arg 3 is center wl, dont need to input right away.
     if len(sys.argv) > 3:
         center_wavelength = float(sys.argv[3])
     else:
         center_wavelength = float(input("Enter the center wavelength (nm): "))
-
+    #arg 4 is span, but optional.
     span = float(sys.argv[4]) if len(sys.argv) > 4 else 20.0
 
     print(f"Scanning {target_dir} for .xlsx files...")

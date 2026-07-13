@@ -24,9 +24,10 @@ class Plotter:
             plt.title(title)
         plt.xlabel("Wavelength (nm)")
         plt.ylabel("%")
+        '''
         if len(series) > 1:
             plt.legend(loc="best")
-
+        '''
         if output_path:
             output_path = str(output_path)
             plt.savefig(output_path, dpi=150, bbox_inches="tight")
