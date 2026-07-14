@@ -5,6 +5,7 @@ from excel_parser import ExcelParser
 from plotter import Plotter
 from spectrum_parser import SpectrumParser
 from storage import Storage
+from product_family_2 import Prod_fam_2
 
 '''
 this prog has 4 stages:
@@ -13,6 +14,13 @@ extract the data (spectrum_parser.py),
 save it to a json file (storage.py), 
 and plot the data (plotter.py)
 '''
+
+def testcase():
+    print("poop")
+    part_num = input("enter part num: ")
+    family_name = Prod_fam_2(part_num).find_product_family()
+    #downloads in current dir, downloads folder. change later to abs path, or argv.
+    Prod_fam_2(part_num).store_file("downloads", family_name)
 
 def parse_workbooks(target_dir: Path, query: str | None = None) -> dict:
     workbook_files = sorted(target_dir.glob("*.xlsx"))
@@ -65,7 +73,11 @@ def build_plot_series(parsed_spectra: dict, center_wavelength: float, span: floa
 
 
 def main():
-    #arg 2 is target dir
+    testcase()
+
+'''
+def main():
+    #arg 1 is target dir
     if len(sys.argv) > 1:
         target_dir = Path(sys.argv[1]).resolve()
     else:
@@ -75,7 +87,8 @@ def main():
         print(f"ERROR: {target_dir} is not a valid directory.")
         sys.exit(1)
 
-    product_filter = sys.argv[2] if len(sys.argv) > 2 else None
+    product_filter = sys.argv[2]
+
     #arg 3 is center wl, dont need to input right away.
     if len(sys.argv) > 3:
         center_wavelength = float(sys.argv[3])
@@ -83,6 +96,8 @@ def main():
         center_wavelength = float(input("Enter the center wavelength (nm): "))
     #arg 4 is span, but optional.
     span = float(sys.argv[4]) if len(sys.argv) > 4 else 20.0
+    
+    
 
     print(f"Scanning {target_dir} for .xlsx files...")
     parsed_spectra = parse_workbooks(target_dir, query=product_filter)
@@ -98,10 +113,10 @@ def main():
         return
 
     #saves to /home/downloads, change if specific folder needed
-    plot_path = Path.home() / "Downloads" / f"plot_{center_wavelength}_{span}.png"
+    plot_path = Path.home() / "Downloads" / f"plot_{product_filter}_at_{center_wavelength}_for_span_{span}.png"
     Plotter().plot(plot_series, title=f"Spectra around {center_wavelength} nm", output_path=str(plot_path), show=False)
     print(f"Saved plot to {plot_path}")
 
-
+'''
 if __name__ == "__main__":
     main()
