@@ -15,8 +15,9 @@ from playwright.sync_api import sync_playwright
 
 class Prod_fam_2:
 
-    def __init__(self, part_num):
+    def __init__(self, part_num = "", parts_list = []):
         self.part_num = part_num
+        self.parts_list = parts_list
 
     #turn this into a class to use later?
     def find_product_family(self):
@@ -80,4 +81,21 @@ class Prod_fam_2:
 
 
         print(f"saved to {json_path}.")
+
+    def store_file_2(self, data_dir, part_list):
+        for part_num in part_list:
+            # Update this object's current part number
+            self.part_num = part_num
+
+            print(f"\nProcessing {part_num}...")
+
+            family_name = self.find_product_family()
+
+            if family_name is None:
+                print(f"Skipping {part_num}: could not determine product family.")
+                continue
+
+            self.store_file(data_dir, family_name)
+
+        print("\nFinished processing all products.")
  

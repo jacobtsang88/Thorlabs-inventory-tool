@@ -16,7 +16,9 @@ def main():
     #downloads in current dir, downloads folder. change later to abs path, or argv.
     Prod_fam_2(part_num).store_file("downloads", family_name)
     '''
-    print(txt_to_list().convert())
+    fart = txt_to_list().convert()
+    pf = Prod_fam_2()
+    pf.store_file_2("downloads", fart)
 
 
 

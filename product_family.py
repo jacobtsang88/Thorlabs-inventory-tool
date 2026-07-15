@@ -14,6 +14,7 @@ import json
 import requests
 from playwright.sync_api import sync_playwright
 
+#turn this into a class to use later?
 def find_product_family(part_number: str) -> str | None:
     product_url = f"https://www.thorlabs.com/item/{part_number}" 
 
