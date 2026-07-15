@@ -8,7 +8,6 @@ REMINDER: check to see if we alr found product family for a certain product befo
 
 import os #to communicate with parent OS
 import re #for RegEX stuff
-import sys
 from urllib.parse import urlparse
 import json
 import requests

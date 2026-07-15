@@ -15,13 +15,6 @@ save it to a json file (storage.py),
 and plot the data (plotter.py)
 '''
 
-def testcase():
-    print("poop")
-    part_num = input("enter part num: ")
-    family_name = Prod_fam_2(part_num).find_product_family()
-    #downloads in current dir, downloads folder. change later to abs path, or argv.
-    Prod_fam_2(part_num).store_file("downloads", family_name)
-
 def parse_workbooks(target_dir: Path, query: str | None = None) -> dict:
     workbook_files = sorted(target_dir.glob("*.xlsx"))
 
@@ -73,10 +66,6 @@ def build_plot_series(parsed_spectra: dict, center_wavelength: float, span: floa
 
 
 def main():
-    testcase()
-
-'''
-def main():
     #arg 1 is target dir
     if len(sys.argv) > 1:
         target_dir = Path(sys.argv[1]).resolve()
@@ -117,6 +106,6 @@ def main():
     Plotter().plot(plot_series, title=f"Spectra around {center_wavelength} nm", output_path=str(plot_path), show=False)
     print(f"Saved plot to {plot_path}")
 
-'''
+
 if __name__ == "__main__":
     main()
