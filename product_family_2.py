@@ -100,7 +100,7 @@ class Prod_fam_2:
         print("\nFinished processing all products.")
 
     def checkProdFamExists(self, part_num):
-        for parts in part_list:
+        #for parts in part_list:
             #do binary search to try to find, this is where the leetcode comes in LMAO
         return
  
