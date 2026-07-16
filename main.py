@@ -6,6 +6,7 @@ from plotter import Plotter
 from spectrum_parser import SpectrumParser
 from storage import Storage
 from product_family_2 import Prod_fam_2
+from testcase import txt_to_list
 
 '''
 this prog has 4 stages:
@@ -64,9 +65,13 @@ def build_plot_series(parsed_spectra: dict, center_wavelength: float, span: floa
 
     return plot_series
 
+def check_product(product_num):
+    pf2 = Prod_fam_2(product_num)
+    txtlist = txt_to_list.convert()
+    #pf2.checkProdFamExists
 
 def main():
-    #arg 1 is target dir
+    #arg 1 is target dir for the plot to download to.
     if len(sys.argv) > 1:
         target_dir = Path(sys.argv[1]).resolve()
     else:
@@ -76,9 +81,11 @@ def main():
         print(f"ERROR: {target_dir} is not a valid directory.")
         sys.exit(1)
 
+    #arg2 is the product number.
     product_filter = sys.argv[2]
 
-    #arg 3 is center wl, dont need to input right away.
+
+    #arg 3 is center wl, dont need to input right away, but possible
     if len(sys.argv) > 3:
         center_wavelength = float(sys.argv[3])
     else:

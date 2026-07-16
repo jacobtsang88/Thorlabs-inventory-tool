@@ -1,4 +1,5 @@
 '''
+notes to self:
 use this program to find a product's product family.
 sort the repo by product family and wavelength instead.
 store the associated family product in it's own file for reference later.
@@ -10,7 +11,6 @@ import os #to communicate with parent OS
 import re #for RegEX stuff
 from urllib.parse import urlparse
 import json
-import requests
 from playwright.sync_api import sync_playwright
 
 class Prod_fam_2:
@@ -98,4 +98,9 @@ class Prod_fam_2:
             self.store_file(data_dir, family_name)
 
         print("\nFinished processing all products.")
+
+    def checkProdFamExists(self, part_num):
+        for parts in part_list:
+            #do binary search to try to find, this is where the leetcode comes in LMAO
+        return
  
