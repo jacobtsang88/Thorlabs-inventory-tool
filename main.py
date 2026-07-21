@@ -10,7 +10,7 @@ from processtxt import txt_to_list
 
 #change to relative path
 with open("families.json", "r") as file:
-    inventoryDict = json.loads(file)
+    inventoryDict = json.load(file)
 
 def parse_workbooks(target_dir: Path, query: str | None = None) -> dict:
     workbook_files = sorted(target_dir.glob("*.xlsx"))
