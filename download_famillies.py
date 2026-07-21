@@ -1,10 +1,3 @@
-import sys
-from pathlib import Path
-
-from excel_parser import ExcelParser
-from plotter import Plotter
-from spectrum_parser import SpectrumParser
-from storage import Storage
 from product_family_2 import Prod_fam_2
 from processtxt import txt_to_list
 

@@ -49,10 +49,11 @@ class Prod_fam_2:
 
         return None
 
-    def store_file(self, data_dir, family_name):
+    def store_file(self, family_name):
         #store prod. fams in json file
-        os.makedirs(data_dir, exist_ok=True) #check if data_dir exists, if yes, then ok
-        json_path = os.path.join(data_dir, "families.json")
+        #os.makedirs(data_dir, exist_ok=True) #check if data_dir exists, if yes, then ok
+        json_path = "families.json"
+        #json_path = os.path.join(data_dir, "families.json")
 
         #init families json if not existing yet
         if os.path.exists(json_path):
@@ -82,7 +83,7 @@ class Prod_fam_2:
 
         print(f"saved to {json_path}.")
 
-    def store_file_2(self, data_dir, part_list):
+    def store_file_2(self, part_list):
         for part_num in part_list:
             # Update this object's current part number
             self.part_num = part_num
@@ -95,12 +96,12 @@ class Prod_fam_2:
                 print(f"Skipping {part_num}: could not determine product family.")
                 continue
 
-            self.store_file(data_dir, family_name)
+            self.store_file(family_name)
 
         print("\nFinished processing all products.")
 
-    def checkProdFamExists(self, part_num):
-        #for parts in part_list:
-            #do binary search to try to find, this is where the leetcode comes in LMAO
-        return
+    def checkProdFamExists(self, invDict, part_num):
+        if part_num in invDict:
+            return invDict
+
  

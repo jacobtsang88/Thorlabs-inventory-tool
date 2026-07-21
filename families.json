@@ -1,0 +1,237 @@
+{
+    "la4372": {
+        "family": {
+            "uv-fused-silica-plano-convex-lenses-uncoated": {}
+        }
+    },
+    "la1238": {
+        "family": {
+            "n-bk7-plano-convex-lenses-uncoated": {}
+        }
+    },
+    "la4984": {
+        "family": {
+            "uv-fused-silica-plano-convex-lenses-uncoated": {}
+        }
+    },
+    "la4039": {
+        "family": {
+            "uv-fused-silica-plano-convex-lenses-uncoated": {}
+        }
+    },
+    "la4647": {
+        "family": {
+            "uv-fused-silica-plano-convex-lenses-uncoated": {}
+        }
+    },
+    "LA1805": {
+        "family": {
+            "n-bk7-plano-convex-lenses-uncoated": {}
+        }
+    },
+    "LA1301-B": {
+        "family": {
+            "n-bk7-plano-convex-lenses-ar-coating-650---1050-nm": {}
+        }
+    },
+    "LA1027": {
+        "family": {
+            "n-bk7-plano-convex-lenses-uncoated": {}
+        }
+    },
+    "LA1951": {
+        "family": {
+            "n-bk7-plano-convex-lenses-uncoated": {}
+        }
+    },
+    "LA1417-B": {
+        "family": {
+            "n-bk7-plano-convex-lenses-ar-coating-650---1050-nm": {}
+        }
+    },
+    "LA1979-B": {
+        "family": {
+            "n-bk7-plano-convex-lenses-ar-coating-650---1050-nm": {}
+        }
+    },
+    "LC2265": {
+        "family": {
+            "n-sf11-plano-concave-lenses-uncoated": {}
+        }
+    },
+    "LB1309": {
+        "family": {
+            "n-bk7-bi-convex-lenses-uncoated": {}
+        }
+    },
+    "LJ1629RM-A": {
+        "family": {
+            "mounted-plano-convex-round-cylindrical-lenses-n-bk7": {}
+        }
+    },
+    "LB1630": {
+        "family": {
+            "n-bk7-bi-convex-lenses-uncoated": {}
+        }
+    },
+    "LA1131": {
+        "family": {
+            "n-bk7-plano-convex-lenses-uncoated": {}
+        }
+    },
+    "LA1422": {
+        "family": {
+            "n-bk7-plano-convex-lenses-uncoated": {}
+        }
+    },
+    "BSF20-B": {
+        "family": {
+            "beam-samplers": {}
+        }
+    },
+    "LBF254-150-B": {
+        "family": {
+            "1-inch-n-bk7-best-form-spherical-lenses-ar-coating-650-1050-nm": {}
+        }
+    },
+    "LC2679": {
+        "family": {
+            "n-sf11-plano-concave-lenses-uncoated": {}
+        }
+    },
+    "WG41050": {
+        "family": {
+            "uv-fused-silica-high-precision-windows": {}
+        }
+    },
+    "PBS251": {
+        "family": {
+            "broadband-polarizing-beamsplitter-cubes": {}
+        }
+    },
+    "BS014": {
+        "family": {
+            "non-polarizing-cube-beamsplitters-700---1100-nm": {}
+        }
+    },
+    "PBS253": {
+        "family": {
+            "broadband-polarizing-beamsplitter-cubes": {}
+        }
+    },
+    "FGL780M": {
+        "family": {
+            "mounted-longpass-colored-glass-filters": {}
+        }
+    },
+    "FESH0750": {
+        "family": {
+            "hard-coated-edgepass-filters": {}
+        }
+    },
+    "FGB67": {
+        "family": {
+            "unmounted-bandpass-colored-glass-filters": {}
+        }
+    },
+    "F240APC-B": {
+        "family": {
+            "fixed-focus-collimation-packages-fcapc-connectors": {}
+        }
+    },
+    "F220APC-532": {
+        "family": {
+            "fixed-focus-collimation-packages-fcapc-connectors": {}
+        }
+    },
+    "PF10-03-P01": {
+        "family": {
+            "protected-silver-mirrors": {}
+        }
+    },
+    "DG10-1500-H1-MD": {
+        "family": {
+            "ground-glass-alignment-disks": {}
+        }
+    },
+    "BB1-E03": {
+        "family": {
+            "fused-silica-broadband-dielectric-mirrors": {}
+        }
+    },
+    "WG10530": {
+        "family": {
+            "n-bk7-high-precision-windows": {}
+        }
+    },
+    "WG11050": {
+        "family": {
+            "n-bk7-high-precision-windows": {}
+        }
+    },
+    "LA5763": {
+        "family": {
+            "calcium-fluoride-plano-convex-lenses-uncoated": {}
+        }
+    },
+    "LA5714": {
+        "family": {
+            "calcium-fluoride-plano-convex-lenses-uncoated": {}
+        }
+    },
+    "PF20-03-P01": {
+        "family": {
+            "protected-silver-mirrors": {}
+        }
+    },
+    "BB1-E02P": {
+        "family": {
+            "plano-mirrors-back-side-polished": {}
+        }
+    },
+    "BB1-E03P": {
+        "family": {
+            "plano-mirrors-back-side-polished": {}
+        }
+    },
+    "BB1-E04": {
+        "family": {
+            "fused-silica-broadband-dielectric-mirrors": {}
+        }
+    },
+    "BB1-E02": {
+        "family": {
+            "fused-silica-broadband-dielectric-mirrors": {}
+        }
+    },
+    "WG12012": {
+        "family": {
+            "n-bk7-high-precision-windows": {}
+        }
+    },
+    "BB2-E03": {
+        "family": {
+            "fused-silica-broadband-dielectric-mirrors": {}
+        }
+    },
+    "WG31050": {
+        "family": {
+            "sapphire-windows": {}
+        }
+    },
+    "UFM10R": {
+        "family": {
+            "dual-band-specialty-dielectric-mirror-400-nm-and-800-nm": {}
+        }
+    },
+    "DPU-25": {
+        "family": {
+            "quartz-wedge-achromatic-depolarizers": {}
+        }
+    },
+    "SM1PM10": {
+        "family": {
+            "polarizing-prism-mounts": {}
+        }
+    }
+}

@@ -1,20 +1,16 @@
 import sys
 from pathlib import Path
-
+import json
 from excel_parser import ExcelParser
 from plotter import Plotter
 from spectrum_parser import SpectrumParser
 from storage import Storage
 from product_family_2 import Prod_fam_2
-from testcase import txt_to_list
+from processtxt import txt_to_list
 
-'''
-this prog has 4 stages:
-parse the excel file given (excel_parser.py), 
-extract the data (spectrum_parser.py), 
-save it to a json file (storage.py), 
-and plot the data (plotter.py)
-'''
+#change to relative path
+with open("families.json", "r") as file:
+    inventoryDict = json.loads(file)
 
 def parse_workbooks(target_dir: Path, query: str | None = None) -> dict:
     workbook_files = sorted(target_dir.glob("*.xlsx"))
@@ -67,9 +63,8 @@ def build_plot_series(parsed_spectra: dict, center_wavelength: float, span: floa
 
 def check_product(product_num):
     pf2 = Prod_fam_2(product_num)
-    txtlist = txt_to_list.convert()
-    #pf2.checkProdFamExists
-
+    print(pf2.checkProdFamExists(inventoryDict, product_num))
+'''
 def main():
     #arg 1 is target dir for the plot to download to.
     if len(sys.argv) > 1:
@@ -112,7 +107,11 @@ def main():
     plot_path = Path.home() / "Downloads" / f"plot_{product_filter}_at_{center_wavelength}_for_span_{span}.png"
     Plotter().plot(plot_series, title=f"Spectra around {center_wavelength} nm", output_path=str(plot_path), show=False)
     print(f"Saved plot to {plot_path}")
+'''
 
+def main():
+    product_filter = sys.argv[1]
+    check_product(product_filter)
 
 if __name__ == "__main__":
     main()

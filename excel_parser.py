@@ -1,6 +1,4 @@
 import openpyxl
-
-
 class ExcelParser:
 
     def __init__(self, filename):
