@@ -102,6 +102,7 @@ class Prod_fam_2:
 
     def checkProdFamExists(self, invDict, part_num):
         if part_num in invDict:
-            return invDict
+            family = invDict.get(part_num)
+            return f"exists. {part_num} has family: {family}"
 
  
