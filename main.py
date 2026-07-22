@@ -63,7 +63,14 @@ def build_plot_series(parsed_spectra: dict, center_wavelength: float, span: floa
 
 def check_product(product_num):
     pf2 = Prod_fam_2(product_num)
-    print(pf2.checkProdFamExists(inventoryDict, product_num))
+    family_stored = pf2.checkProdFamExists(inventoryDict, product_num)
+    #if not stored then find and store before returning.
+    if family_stored == None:
+        family_found = pf2.find_product_family()
+        pf2.store_file(family_found)
+        return family_found
+    else:
+        return family_stored
 '''
 def main():
     #arg 1 is target dir for the plot to download to.

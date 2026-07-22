@@ -4,7 +4,6 @@ from product_family_2 import Prod_fam_2
 from processtxt import txt_to_list
 
 def main():
-    print("poop")
     '''
     download list of products and their respective families into a local .json file
     '''

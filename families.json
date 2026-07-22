@@ -233,5 +233,10 @@
         "family": {
             "polarizing-prism-mounts": {}
         }
+    },
+    "LA1238": {
+        "family": {
+            "n-bk7-plano-convex-lenses-uncoated": {}
+        }
     }
 }
