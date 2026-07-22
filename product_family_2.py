@@ -103,9 +103,9 @@ class Prod_fam_2:
     def checkProdFamExists(self, invDict, part_num):
         if part_num in invDict:
             #next(iter()) is for going inside the dict, otherwise, it will print {} and stuff
-            family = next(iter(invDict[part_num]["family"]))
-            print(f"exists. {part_num} has family: {family}")
-            return family
+            family_name = next(iter(invDict[part_num]["family"]))
+            print(f"{part_num} has stored family: {family_name}")
+            return family_name
             
 
  

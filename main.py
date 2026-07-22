@@ -117,8 +117,19 @@ def main():
 '''
 
 def main():
-    product_filter = sys.argv[1]
-    check_product(product_filter)
+    target_dir = "~/Downloads"
+    if len(sys.argv) > 2:
+        center_wl = float(sys.argv[2])
+    else:
+        center_wl = float(input("Enter the center wavelength (nm): "))
+    product_name = sys.argv[1]
+    product_family = check_product(product_name)
+    span = float(sys.argv[4]) if len(sys.argv) > 4 else 20.0
+
+    print(f"looking for raw_data for {product_name} and family {product_family}")
+    #next add raw data download to program and then pull it up here to graph.
+
+
 
 if __name__ == "__main__":
     main()
