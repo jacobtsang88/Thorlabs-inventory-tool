@@ -1,5 +1,6 @@
-import sys
 from pathlib import Path
+import openpyxl
+import sys
 import json
 from excel_parser import ExcelParser
 from plotter import Plotter
@@ -8,58 +9,224 @@ from storage import Storage
 from product_family_2 import Prod_fam_2
 from processtxt import txt_to_list
 
-#change to relative path
 with open("families.json", "r") as file:
     inventoryDict = json.load(file)
 
-def parse_workbooks(target_dir: Path, query: str | None = None) -> dict:
-    workbook_files = sorted(target_dir.glob("*.xlsx"))
+def parse_workbooks(
+    target_dir: Path,
+    query: str | None = None
+) -> dict:
+
+    workbook_files = sorted(
+        target_dir.glob("*.xlsx")
+    )
 
     if query:
+
         query = query.lower()
+
         workbook_files = [
-            path for path in workbook_files
+            path
+            for path in workbook_files
             if query in path.name.lower()
         ]
 
     if not workbook_files:
-        raise FileNotFoundError(f"No matching .xlsx files found in {target_dir}")
+
+        raise FileNotFoundError(
+            f"No matching .xlsx files found in {target_dir}"
+        )
 
     parsed_spectra = {}
 
     for workbook_path in workbook_files:
-        print(f"Parsing {workbook_path.name}...")
-        excel_parser = ExcelParser(str(workbook_path))
-        ws = excel_parser.load()
 
-        spectrum_parser = SpectrumParser()
-        spectra = spectrum_parser.parse(ws)
-        parsed_spectra[workbook_path.stem] = spectra
+        print(
+            f"\nParsing {workbook_path.name}..."
+        )
+
+        workbook = openpyxl.load_workbook(
+            workbook_path,
+            data_only=True,
+            read_only=True
+        )
+
+        workbook_data = {}
+
+        for worksheet in workbook.worksheets:
+
+            print(
+                f"  Processing sheet: "
+                f"{worksheet.title}"
+            )
+
+            rows = list(
+                worksheet.iter_rows(
+                    values_only=True
+                )
+            )
+
+            wavelength_header_row = None
+
+            for row_index, row in enumerate(rows):
+
+                for cell in row:
+
+                    if cell is None:
+                        continue
+
+                    if "wavelength" in str(
+                        cell
+                    ).lower():
+
+                        wavelength_header_row = row_index
+
+                        break
+
+                if wavelength_header_row is not None:
+                    break
+
+            if wavelength_header_row is None:
+
+                print(
+                    "  No wavelength header found."
+                )
+
+                continue
+
+            header_row = rows[
+                wavelength_header_row
+            ]
+
+            wavelength_columns = []
+
+            for column_index, cell in enumerate(
+                header_row
+            ):
+
+                if cell is None:
+                    continue
+
+                if "wavelength" in str(
+                    cell
+                ).lower():
+
+                    wavelength_columns.append(
+                        column_index
+                    )
+
+            print(
+                f"  Wavelength columns: "
+                f"{wavelength_columns}"
+            )
+
+            for wavelength_column in (
+                wavelength_columns
+            ):
+
+                data_column = (
+                    wavelength_column + 1
+                )
+
+                if data_column >= len(
+                    header_row
+                ):
+
+                    continue
+
+                wavelength_header = (
+                    header_row[
+                        wavelength_column
+                    ]
+                )
+
+                data_header = (
+                    header_row[
+                        data_column
+                    ]
+                )
+
+                print(
+                    f"  Data series: "
+                    f"{wavelength_header} -> "
+                    f"{data_header}"
+                )
+
+                data = {}
+
+                for row in rows[
+                    wavelength_header_row + 1:
+                ]:
+
+                    if (
+                        wavelength_column
+                        >= len(row)
+                    ):
+
+                        continue
+
+                    if (
+                        data_column
+                        >= len(row)
+                    ):
+
+                        continue
+
+                    wavelength = row[
+                        wavelength_column
+                    ]
+
+                    value = row[
+                        data_column
+                    ]
+
+                    if (
+                        wavelength is None
+                        or value is None
+                    ):
+
+                        continue
+
+                    try:
+
+                        wavelength = float(
+                            wavelength
+                        )
+
+                        value = float(
+                            value
+                        )
+
+                    except (
+                        ValueError,
+                        TypeError
+                    ):
+
+                        continue
+
+                    data[wavelength] = value
+
+                if data:
+
+                    metric_name = str(
+                        data_header
+                    )
+
+                    workbook_data[
+                        metric_name
+                    ] = data
+
+                    print(
+                        f"  Extracted "
+                        f"{len(data)} points"
+                    )
+
+        parsed_spectra[
+            workbook_path.stem
+        ] = workbook_data
 
     return parsed_spectra
 
-
-def build_plot_series(parsed_spectra: dict, center_wavelength: float, span: float, product_filter: str | None = None) -> list[tuple[str, dict]]:
-    plot_series = []
-
-    for source_name, spectra in parsed_spectra.items():
-        for product_name, metrics in spectra.items():
-            if product_filter:
-                filter_text = product_filter.lower()
-                if filter_text not in source_name.lower() and filter_text not in product_name.lower():
-                    continue
-
-            for metric_name, data in metrics.items():
-                window = {
-                    float(wavelength): value
-                    for wavelength, value in data.items()
-                    if center_wavelength - span <= float(wavelength) <= center_wavelength + span
-                }
-                if window:
-                    label = f"{source_name} | {product_name} | {metric_name}"
-                    plot_series.append((label, window))
-
-    return plot_series
 
 def check_product(product_num):
     pf2 = Prod_fam_2(product_num)
@@ -71,64 +238,72 @@ def check_product(product_num):
         return family_found
     else:
         return family_stored
-'''
+    
+
+def build_plot_series(
+    parsed_spectra: dict,
+    center_wavelength: float,
+    span: float,
+    product_filter: str | None = None,
+) -> list[tuple[str, dict]]:
+    plot_series = []
+
+    for source_name, spectra in parsed_spectra.items():
+        # Filter by product/source name if requested
+        if product_filter:
+            filter_text = product_filter.lower()
+            if filter_text not in source_name.lower():
+                continue
+
+        # spectra is directly {metric_name: {wavelength: value}}
+        for metric_name, data in spectra.items():
+            window = {
+                float(wavelength): value
+                for wavelength, value in data.items()
+                if center_wavelength - span
+                <= float(wavelength)
+                <= center_wavelength + span
+            }
+            if window:
+                label = f"{source_name} | {metric_name}"
+                plot_series.append((label, window))
+
+    return plot_series
+
 def main():
-    #arg 1 is target dir for the plot to download to.
-    if len(sys.argv) > 1:
-        target_dir = Path(sys.argv[1]).resolve()
+    #target_dir = "/downloads"
+    target_dir = (Path(__file__).resolve().parent / "downloads").resolve()
+    if len(sys.argv) >1:
+        product_name = sys.argv[1]
     else:
-        target_dir = (Path(__file__).resolve().parent / "downloads" / "Inventory").resolve()
-
-    if not target_dir.is_dir():
-        print(f"ERROR: {target_dir} is not a valid directory.")
-        sys.exit(1)
-
-    #arg2 is the product number.
-    product_filter = sys.argv[2]
-
-
-    #arg 3 is center wl, dont need to input right away, but possible
-    if len(sys.argv) > 3:
-        center_wavelength = float(sys.argv[3])
+        product_name = input("enter product number: ")
+    if len(sys.argv) > 2:
+        center_wl = float(sys.argv[2])
     else:
-        center_wavelength = float(input("Enter the center wavelength (nm): "))
-    #arg 4 is span, but optional.
-    span = float(sys.argv[4]) if len(sys.argv) > 4 else 20.0
+        center_wl = float(input("Enter the center wavelength (nm): "))
     
-    
+    product_family = check_product(product_name)
+    if product_family is None:
+        print(f"Could not determine family for "f"{product_name}.")
+        return
+    span = float(sys.argv[3]) if len(sys.argv) > 3 else 20.0
 
-    print(f"Scanning {target_dir} for .xlsx files...")
-    parsed_spectra = parse_workbooks(target_dir, query=product_filter)
+    parsed_spectra = parse_workbooks(target_dir, query=product_family)
 
-    output_json = target_dir / "parsed_spectra.json"
-    output_json.parent.mkdir(parents=True, exist_ok=True)
-    Storage().save(parsed_spectra, str(output_json))
-    print(f"Saved parsed spectra to {output_json}")
-
-    plot_series = build_plot_series(parsed_spectra, center_wavelength, span, product_filter=product_filter)
+    plot_series = build_plot_series(parsed_spectra, center_wl, span, product_filter=product_family)
     if not plot_series:
         print("No data points were found for requested wavelength window.")
         return
 
     #saves to /home/downloads, change if specific folder needed
-    plot_path = Path.home() / "Downloads" / f"plot_{product_filter}_at_{center_wavelength}_for_span_{span}.png"
-    Plotter().plot(plot_series, title=f"Spectra around {center_wavelength} nm", output_path=str(plot_path), show=False)
+    plot_path = Path.home() / "Downloads" / f"plot_{product_name}_at_{center_wl}_for_span_{span}.png"
+    Plotter().plot(plot_series, title=f"Spectra around {center_wl} nm", output_path=str(plot_path), show=False)
     print(f"Saved plot to {plot_path}")
-'''
 
-def main():
-    target_dir = "~/Downloads"
-    if len(sys.argv) > 2:
-        center_wl = float(sys.argv[2])
-    else:
-        center_wl = float(input("Enter the center wavelength (nm): "))
-    product_name = sys.argv[1]
-    product_family = check_product(product_name)
-    span = float(sys.argv[4]) if len(sys.argv) > 4 else 20.0
-
-    print(f"looking for raw_data for {product_name} and family {product_family}")
-    #next add raw data download to program and then pull it up here to graph.
-
+    '''
+    print("========== PARSED DATA ==========")
+    print(json.dumps(parsed_spectra, indent=4))
+    '''
 
 
 if __name__ == "__main__":

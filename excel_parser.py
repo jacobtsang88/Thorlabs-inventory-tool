@@ -1,4 +1,43 @@
-import openpyxl
+# excel_parser.py
+from pathlib import Path
+import pandas as pd
+
+class ExcelParser:
+    def __init__(self, file_path):
+        self.file_path = Path(file_path)
+
+    def parse(self, sheet_name=0):
+        """
+        Parses optical Excel data files.
+        Dynamically finds header rows and cleans surrounding empty data.
+        """
+        df = pd.read_excel(self.file_path, sheet_name=sheet_name)
+        
+        # Remove completely empty rows/columns
+        df = df.dropna(how='all', axis=0).dropna(how='all', axis=1)
+        
+        # Identify the header row index using keyword matching
+        header_row_idx = None
+        for idx, row in df.iterrows():
+            if row.astype(str).str.contains('Wavelength|Reflectance|Transmission|Divergence', case=False).any():
+                header_row_idx = idx
+                break
+                
+        if header_row_idx is not None:
+            df.columns = df.loc[header_row_idx]
+            df = df.loc[header_row_idx + 1:].reset_index(drop=True)
+            
+        # Clean unnamed/NaN columns
+        df = df.loc[:, df.columns.notna()]
+        
+        # Coerce column values to numeric floats
+        for col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors='coerce')
+            
+        return df.dropna()
+
+
+'''import openpyxl
 class ExcelParser:
 
     def __init__(self, filename):
@@ -49,4 +88,4 @@ class ExcelParser:
 
         raise Exception(
             "No wavelength header found"
-        )
+        )'''
