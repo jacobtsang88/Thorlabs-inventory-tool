@@ -12,27 +12,20 @@ from processtxt import txt_to_list
 with open("families.json", "r") as file:
     inventoryDict = json.load(file)
 
-def parse_workbooks(
-    target_dir: Path,
-    query: str | None = None
-) -> dict:
+from pathlib import Path
+import openpyxl
 
-    workbook_files = sorted(
-        target_dir.glob("*.xlsx")
-    )
+
+def parse_workbooks(target_dir: Path, query: str | None = None) -> dict:
+    workbook_files = sorted(target_dir.glob("*.xlsx"))
 
     if query:
-
         query = query.lower()
-
         workbook_files = [
-            path
-            for path in workbook_files
-            if query in path.name.lower()
+            path for path in workbook_files if query in path.name.lower()
         ]
 
     if not workbook_files:
-
         raise FileNotFoundError(
             f"No matching .xlsx files found in {target_dir}"
         )
@@ -40,190 +33,81 @@ def parse_workbooks(
     parsed_spectra = {}
 
     for workbook_path in workbook_files:
-
-        print(
-            f"\nParsing {workbook_path.name}..."
-        )
+        print(f"\nParsing {workbook_path.name}...")
 
         workbook = openpyxl.load_workbook(
-            workbook_path,
-            data_only=True,
-            read_only=True
+            workbook_path, data_only=True, read_only=True
         )
-
         workbook_data = {}
 
         for worksheet in workbook.worksheets:
+            print(f"  Processing sheet: {worksheet.title}")
 
-            print(
-                f"  Processing sheet: "
-                f"{worksheet.title}"
-            )
-
-            rows = list(
-                worksheet.iter_rows(
-                    values_only=True
-                )
-            )
-
+            rows = list(worksheet.iter_rows(values_only=True))
             wavelength_header_row = None
 
             for row_index, row in enumerate(rows):
-
                 for cell in row:
-
                     if cell is None:
                         continue
-
-                    if "wavelength" in str(
-                        cell
-                    ).lower():
-
+                    if "wavelength" in str(cell).lower():
                         wavelength_header_row = row_index
-
                         break
-
                 if wavelength_header_row is not None:
                     break
 
             if wavelength_header_row is None:
-
-                print(
-                    "  No wavelength header found."
-                )
-
+                print("  No wavelength header found.")
                 continue
 
-            header_row = rows[
-                wavelength_header_row
-            ]
-
+            header_row = rows[wavelength_header_row]
             wavelength_columns = []
 
-            for column_index, cell in enumerate(
-                header_row
-            ):
-
+            for column_index, cell in enumerate(header_row):
                 if cell is None:
                     continue
+                if "wavelength" in str(cell).lower():
+                    wavelength_columns.append(column_index)
 
-                if "wavelength" in str(
-                    cell
-                ).lower():
+            print(f"  Wavelength columns: {wavelength_columns}")
 
-                    wavelength_columns.append(
-                        column_index
-                    )
+            for wavelength_column in wavelength_columns:
+                data_column = wavelength_column + 1
 
-            print(
-                f"  Wavelength columns: "
-                f"{wavelength_columns}"
-            )
-
-            for wavelength_column in (
-                wavelength_columns
-            ):
-
-                data_column = (
-                    wavelength_column + 1
-                )
-
-                if data_column >= len(
-                    header_row
-                ):
-
+                if data_column >= len(header_row):
                     continue
 
-                wavelength_header = (
-                    header_row[
-                        wavelength_column
-                    ]
-                )
+                wavelength_header = header_row[wavelength_column]
+                data_header = header_row[data_column]
 
-                data_header = (
-                    header_row[
-                        data_column
-                    ]
-                )
-
-                print(
-                    f"  Data series: "
-                    f"{wavelength_header} -> "
-                    f"{data_header}"
-                )
+                print(f"  Data series: {wavelength_header} -> {data_header}")
 
                 data = {}
 
-                for row in rows[
-                    wavelength_header_row + 1:
-                ]:
-
-                    if (
-                        wavelength_column
-                        >= len(row)
-                    ):
-
+                for row in rows[wavelength_header_row + 1 :]:
+                    if wavelength_column >= len(row) or data_column >= len(row):
                         continue
 
-                    if (
-                        data_column
-                        >= len(row)
-                    ):
+                    wavelength = row[wavelength_column]
+                    value = row[data_column]
 
-                        continue
-
-                    wavelength = row[
-                        wavelength_column
-                    ]
-
-                    value = row[
-                        data_column
-                    ]
-
-                    if (
-                        wavelength is None
-                        or value is None
-                    ):
-
+                    if wavelength is None or value is None:
                         continue
 
                     try:
-
-                        wavelength = float(
-                            wavelength
-                        )
-
-                        value = float(
-                            value
-                        )
-
-                    except (
-                        ValueError,
-                        TypeError
-                    ):
-
+                        wavelength = float(wavelength)
+                        value = float(value)
+                    except (ValueError, TypeError):
                         continue
 
                     data[wavelength] = value
 
                 if data:
+                    metric_name = str(data_header)
+                    workbook_data[metric_name] = data
+                    print(f"  Extracted {len(data)} points")
 
-                    metric_name = str(
-                        data_header
-                    )
-
-                    workbook_data[
-                        metric_name
-                    ] = data
-
-                    print(
-                        f"  Extracted "
-                        f"{len(data)} points"
-                    )
-
-        parsed_spectra[
-            workbook_path.stem
-        ] = workbook_data
+        parsed_spectra[workbook_path.stem] = workbook_data
 
     return parsed_spectra
 
@@ -286,7 +170,7 @@ def main():
     if product_family is None:
         print(f"Could not determine family for "f"{product_name}.")
         return
-    span = float(sys.argv[3]) if len(sys.argv) > 3 else 20.0
+    span = float(sys.argv[3]) if len(sys.argv) > 3 else 10.0
 
     parsed_spectra = parse_workbooks(target_dir, query=product_family)
 
