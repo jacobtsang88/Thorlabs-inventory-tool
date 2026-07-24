@@ -15,7 +15,6 @@ with open("families.json", "r") as file:
 from pathlib import Path
 import openpyxl
 
-
 def parse_workbooks(target_dir: Path, query: str | None = None) -> dict:
     workbook_files = sorted(target_dir.glob("*.xlsx"))
 
@@ -33,7 +32,7 @@ def parse_workbooks(target_dir: Path, query: str | None = None) -> dict:
     parsed_spectra = {}
 
     for workbook_path in workbook_files:
-        print(f"\nParsing {workbook_path.name}...")
+        #print(f"\nParsing {workbook_path.name}...")
 
         workbook = openpyxl.load_workbook(
             workbook_path, data_only=True, read_only=True
@@ -41,7 +40,7 @@ def parse_workbooks(target_dir: Path, query: str | None = None) -> dict:
         workbook_data = {}
 
         for worksheet in workbook.worksheets:
-            print(f"  Processing sheet: {worksheet.title}")
+            #print(f"  Processing sheet: {worksheet.title}")
 
             rows = list(worksheet.iter_rows(values_only=True))
             wavelength_header_row = None
@@ -57,7 +56,7 @@ def parse_workbooks(target_dir: Path, query: str | None = None) -> dict:
                     break
 
             if wavelength_header_row is None:
-                print("  No wavelength header found.")
+                #print("  No wavelength header found.")
                 continue
 
             header_row = rows[wavelength_header_row]
@@ -69,7 +68,7 @@ def parse_workbooks(target_dir: Path, query: str | None = None) -> dict:
                 if "wavelength" in str(cell).lower():
                     wavelength_columns.append(column_index)
 
-            print(f"  Wavelength columns: {wavelength_columns}")
+            #print(f"  Wavelength columns: {wavelength_columns}")
 
             for wavelength_column in wavelength_columns:
                 data_column = wavelength_column + 1
@@ -80,7 +79,7 @@ def parse_workbooks(target_dir: Path, query: str | None = None) -> dict:
                 wavelength_header = header_row[wavelength_column]
                 data_header = header_row[data_column]
 
-                print(f"  Data series: {wavelength_header} -> {data_header}")
+                #print(f"  Data series: {wavelength_header} -> {data_header}")
 
                 data = {}
 
@@ -105,7 +104,7 @@ def parse_workbooks(target_dir: Path, query: str | None = None) -> dict:
                 if data:
                     metric_name = str(data_header)
                     workbook_data[metric_name] = data
-                    print(f"  Extracted {len(data)} points")
+                    #print(f"  Extracted {len(data)} points")
 
         parsed_spectra[workbook_path.stem] = workbook_data
 
@@ -176,18 +175,13 @@ def main():
 
     plot_series = build_plot_series(parsed_spectra, center_wl, span, product_filter=product_family)
     if not plot_series:
-        print("No data points were found for requested wavelength window.")
+        print("No data points were found for requested wavelength window. Please try a diff. wavelength, or the data sheet was not available on Thorlabs.com.")
         return
 
     #saves to /home/downloads, change if specific folder needed
     plot_path = Path.home() / "Downloads" / f"plot_{product_name}_at_{center_wl}_for_span_{span}.png"
     Plotter().plot(plot_series, title=f"Spectra around {center_wl} nm", output_path=str(plot_path), show=False)
     print(f"Saved plot to {plot_path}")
-
-    '''
-    print("========== PARSED DATA ==========")
-    print(json.dumps(parsed_spectra, indent=4))
-    '''
 
 
 if __name__ == "__main__":

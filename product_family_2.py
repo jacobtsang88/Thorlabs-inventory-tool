@@ -1,10 +1,5 @@
 '''
-notes to self:
 use this program to find a product's product family.
-sort the repo by product family and wavelength instead.
-store the associated family product in it's own file for reference later.
-have main.py take in a product, wavelength, dir path
-REMINDER: check to see if we alr found product family for a certain product before scraping.
 '''
 
 import os #to communicate with parent OS
