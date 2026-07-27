@@ -11,7 +11,7 @@ def filename_from_url(url: str, default: str = "download.xlsx") -> str:
 
 def with_graphs_tab(url: str, base_url: str = "https://www.thorlabs.com") -> str:
     """Merge tabName=Graphs into a Thorlabs product/family URL. The raw-data
-    xlsx download links only render on that tab -- the default Overview tab
+    xlsx download links only render on that tab, the default Overview tab
     (or a bare pn= product-family link) has none."""
     if not url.startswith("http"):
         url = f"{base_url}{url}"

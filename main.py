@@ -124,7 +124,8 @@ def check_product(product_num):
     #if not stored then find and store before returning.
     if family_stored == None:
         family_found = pf2.find_product_family()
-        pf2.store_file(family_found)
+        if family_found is not None:
+            pf2.store_file(family_found)
         return family_found
     else:
         return family_stored
@@ -219,7 +220,7 @@ def main():
     if len(sys.argv) >1:
         product_name = sys.argv[1]
     else:
-        product_name = input("enter product number: ")
+        product_name = input("Enter product number: ")
     if len(sys.argv) > 2:
         center_wl = float(sys.argv[2])
     else:

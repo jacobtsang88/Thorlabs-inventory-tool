@@ -45,6 +45,9 @@ class Prod_fam_2:
         return None
 
     def store_file(self, family_name):
+        if family_name is None:
+            return
+
         #check if data_dir exists, if yes, then ok
         json_path = "families.json"
 
@@ -71,8 +74,6 @@ class Prod_fam_2:
         with open(json_path, "w") as f:
             json.dump(products, f, indent = 4)
 
-
-        print(f"saved to {json_path}.")
 
     def store_file_2(self, part_list):
         for part_num in part_list:
