@@ -1,10 +1,10 @@
 import json
-import re
 from pathlib import Path
-from urllib.parse import urljoin
 
 import requests
 from playwright.sync_api import sync_playwright
+
+from naming_utils import filename_from_url, with_graphs_tab
 
 
 class FamilyDownloader:
@@ -33,11 +33,13 @@ class FamilyDownloader:
         return families
 
     def get_family_url(self, family_name: str) -> str:
-        """Convert a family slug into a Thorlabs family URL."""
-        return f"{self.BASE_URL}/{family_name}"
+        """Convert a family slug into a Thorlabs family URL, on the "Graphs"
+        tab -- the raw-data xlsx links only render there, not on the default
+        Overview tab."""
+        return with_graphs_tab(f"/{family_name}")
 
     def find_xlsx_links(self, page) -> list[str]:
-        """Find all .xlsx links on the current page."""
+        """Find every distinct .xlsx link on the current page."""
         links = page.locator("a[href*='.xlsx']").evaluate_all(
             """
             elements => elements.map(element => ({
@@ -46,38 +48,48 @@ class FamilyDownloader:
             }))
             """
         )
-        return [link["href"] for link in links]
+        seen = set()
+        hrefs = []
+        for link in links:
+            href = link.get("href", "") or ""
+            if href and href not in seen:
+                seen.add(href)
+                hrefs.append(href)
+        return hrefs
 
-    def download_file(self, url: str, family_name: str) -> Path | None:
-        """Download an XLSX file and save it into ./downloads."""
-        output_path = self.download_dir / f"{family_name}.xlsx"
-
-        if output_path.exists():
-            print(f"Already downloaded: {output_path}")
-            return output_path
+    def download_file(self, url: str, save_path: Path) -> Path | None:
+        """Download an XLSX file to an exact path, skipping if it already exists."""
+        if save_path.exists():
+            print(f"Already downloaded: {save_path}")
+            return save_path
 
         print(f"Downloading: {url}")
 
         response = requests.get(url, timeout=60)
         response.raise_for_status()
 
-        output_path.write_bytes(response.content)
-        print(f"Saved to: {output_path}")
+        save_path.write_bytes(response.content)
+        print(f"Saved to: {save_path}")
 
-        return output_path
+        return save_path
 
-    def download_family(self, family_name: str) -> tuple[list[Path], bool]:
+    def download_family(self, family_name: str) -> dict[str, Path]:
         """
-        Download XLSX files for a single family.
-        Returns a tuple of (downloaded_file_paths, success_flag).
+        Download every distinct coating/uncoated variant's XLSX file for a
+        family, into downloads/<family_name>/, keeping Thorlabs' own default
+        filename for each (e.g. a_broadband_ar-coating.xlsx).
+        Returns {filename_stem: path} for every variant present on disk
+        after the run (previously downloaded + newly downloaded).
         """
         family_url = self.get_family_url(family_name)
+        family_dir = self.download_dir / family_name
+        family_dir.mkdir(parents=True, exist_ok=True)
 
         print("\nProcessing family:")
         print(f"    {family_name}")
         print(f"    {family_url}")
 
-        downloaded_files = []
+        variants: dict[str, Path] = {}
 
         with sync_playwright() as p:
             browser = p.chromium.launch(headless=True)
@@ -93,34 +105,42 @@ class FamilyDownloader:
 
                 if not xlsx_links:
                     print(f"[WARNING] No XLSX files found for {family_name}")
-                    return [], False
+                    return variants
 
                 print(f"Found {len(xlsx_links)} XLSX file(s).")
 
-                for xlsx_url in xlsx_links:
+                used_names = set()
+                for href in xlsx_links:
+                    filename = filename_from_url(href)
+                    save_path = family_dir / filename
+                    if filename in used_names:
+                        # Two different links happen to share Thorlabs' filename.
+                        stem, suffix = save_path.stem, save_path.suffix
+                        counter = 2
+                        while f"{stem}_{counter}{suffix}" in used_names:
+                            counter += 1
+                        save_path = family_dir / f"{stem}_{counter}{suffix}"
+                    used_names.add(save_path.name)
+
                     try:
-                        file_path = self.download_file(xlsx_url, family_name)
-                        if file_path:
-                            downloaded_files.append(file_path)
+                        downloaded_path = self.download_file(href, save_path)
+                        if downloaded_path:
+                            variants[downloaded_path.stem] = downloaded_path
                     except requests.RequestException as e:
-                        print(f"[ERROR] Failed to download {xlsx_url}: {e}")
-                        return downloaded_files, False
+                        print(f"[ERROR] Failed to download {href}: {e}")
 
             except Exception as e:
                 print(f"[ERROR] Failed to process family {family_name}: {e}")
-                return [], False
 
             finally:
                 browser.close()
 
-        # Success if we successfully downloaded at least one file
-        success = len(downloaded_files) > 0
-        return downloaded_files, success
+        return variants
 
     def download_all_families(self) -> list[str]:
         """
-        Download one XLSX file for every unique product family.
-        Returns a list of family names that failed to download.
+        Download every coating/uncoated variant for every unique product
+        family. Returns a list of family names that failed to download.
         """
         families = self.get_unique_families()
         print(f"Found {len(families)} unique product families.")
@@ -128,8 +148,8 @@ class FamilyDownloader:
         failed_families = []
 
         for family_name in sorted(families):
-            _, success = self.download_family(family_name)
-            if not success:
+            variants = self.download_family(family_name)
+            if not variants:
                 failed_families.append(family_name)
 
         print("\nFinished downloading all families.")

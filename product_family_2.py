@@ -45,10 +45,8 @@ class Prod_fam_2:
         return None
 
     def store_file(self, family_name):
-        #store prod. fams in json file
-        #os.makedirs(data_dir, exist_ok=True) #check if data_dir exists, if yes, then ok
+        #check if data_dir exists, if yes, then ok
         json_path = "families.json"
-        #json_path = os.path.join(data_dir, "families.json")
 
         #init families json if not existing yet
         if os.path.exists(json_path):

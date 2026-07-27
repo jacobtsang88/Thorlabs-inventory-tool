@@ -33,11 +33,7 @@ from urllib.parse import urlparse
 import requests
 from playwright.sync_api import sync_playwright
 
-
-def sanitize_filename_component(value: str | None, default: str = "unknown") -> str:
-    cleaned = re.sub(r"[^A-Za-z0-9._-]+", " ", str(value or default)).strip()
-    cleaned = re.sub(r"\s+", " ", cleaned)
-    return cleaned or default
+from naming_utils import filename_from_url, sanitize_filename_component, with_graphs_tab
 
 
 def build_family_name(family_href: str, page_title: str) -> str:
@@ -55,25 +51,8 @@ def build_family_name(family_href: str, page_title: str) -> str:
     return sanitize_filename_component(candidate.replace("-", " "), default="family")
 
 
-def build_wavelength_label(context_text: str, fallback_wavelength: str | None = None) -> str:
-    range_matches = re.findall(r"([0-9.]+)\s*[-–]\s*([0-9.]+)\s*nm", context_text, re.IGNORECASE)
-    if range_matches:
-        start, end = range_matches[0]
-        return f"{start}-{end} nm"
-
-    single_matches = re.findall(r"([0-9.]+)\s*nm", context_text, re.IGNORECASE)
-    if single_matches:
-        return f"{single_matches[0]} nm"
-
-    if fallback_wavelength:
-        return f"{fallback_wavelength} nm"
-
-    return "all"
-
-
 def get_raw_data(
     part_number: str,
-    requested_wavelength: str | None = None,
     save_dir: str = ".",
 ) -> list[str]:
     #same url regardless of part type im pretty sure
@@ -105,36 +84,17 @@ def get_raw_data(
         family_href = family_link.get_attribute("href")
         print(f"         Found: {family_href}")
 
-        page.goto(family_href if family_href.startswith("http") else f"https://www.thorlabs.com{family_href}", timeout=30000)
+        page.goto(with_graphs_tab(family_href), timeout=30000)
         page.wait_for_load_state("networkidle", timeout=20000)
 
         print("[3/3] collecting xlsx links from family page...")
 
         page_title = page.title()
-        page_headers = " ".join(page.locator("h1, h2, h3, h4, h5").all_text_contents())
         family_name = build_family_name(family_href if family_href else product_url, page_title)
 
         all_links = page.eval_on_selector_all(
             "a[href]",
-            """
-            els => els.map(e => {
-                const nearestBlock = e.closest('figure, p, div, li, td, section, article, span') || e.parentElement;
-                const blockText = nearestBlock ? nearestBlock.innerText.replace(/\\s+/g, ' ').trim() : '';
-                const figure = e.closest('figure');
-                const figureText = figure ? figure.innerText.replace(/\\s+/g, ' ').trim() : '';
-                const section = e.closest('section, article, div') || e.parentElement;
-                const headingText = section
-                    ? (section.querySelector('h1, h2, h3, h4, h5')?.innerText || '')
-                    : '';
-                return {
-                    href: e.href,
-                    text: e.innerText.trim(),
-                    blockText,
-                    figureText,
-                    headingText,
-                };
-            })
-            """
+            "els => els.map(e => e.href)"
         )
 
         def looks_like_xlsx_response(content: bytes, content_type: str) -> bool:
@@ -145,41 +105,42 @@ def get_raw_data(
             )
 
         seen_urls = set()
-        downloaded_paths = []
-        candidate_links = []
-        for link in all_links:
-            href = link.get("href", "") or ""
-            if ".xlsx" not in href.lower():
-                continue
-
-            if href in seen_urls:
+        xlsx_urls = []
+        for href in all_links:
+            href = href or ""
+            if ".xlsx" not in href.lower() or href in seen_urls:
                 continue
             seen_urls.add(href)
+            xlsx_urls.append(href)
 
-            text = link.get("text", "")
-            block_text = link.get("blockText", "")
-            figure_text = link.get("figureText", "")
-            heading_text = link.get("headingText", "")
-            context_text = " ".join([text, block_text, figure_text, heading_text, page_title, page_headers])
-            candidate_links.append((href, context_text))
-
-        if not candidate_links:
+        if not xlsx_urls:
             html = page.content()
             matches = re.findall(r'https?://[^\s"\'<>]+\.xlsx[^\s"\'<>]*', html, re.IGNORECASE)
             for match in matches:
                 if match not in seen_urls:
                     seen_urls.add(match)
-                    candidate_links.append((match, page_title))
+                    xlsx_urls.append(match)
 
-        if not candidate_links:
+        if not xlsx_urls:
             print("[ERROR] No raw data xlsx links found on the family page.")
             browser.close()
             return []
 
-        for xlsx_url, context_text in candidate_links:
-            wavelength_label = build_wavelength_label(context_text, requested_wavelength)
-            filename = f"{sanitize_filename_component(family_name)} {sanitize_filename_component(wavelength_label)}.xlsx"
-            save_path = os.path.join(save_dir, filename)
+        family_save_dir = os.path.join(save_dir, sanitize_filename_component(family_name))
+        os.makedirs(family_save_dir, exist_ok=True)
+
+        downloaded_paths = []
+        used_names = set()
+        for xlsx_url in xlsx_urls:
+            filename = filename_from_url(xlsx_url)
+            if filename in used_names:
+                stem, suffix = os.path.splitext(filename)
+                counter = 2
+                while f"{stem}_{counter}{suffix}" in used_names:
+                    counter += 1
+                filename = f"{stem}_{counter}{suffix}"
+            used_names.add(filename)
+            save_path = os.path.join(family_save_dir, filename)
 
             if os.path.exists(save_path):
                 print(f"Skipping existing file: {save_path}")
@@ -213,14 +174,13 @@ def get_raw_data(
 
 def main():
     if len(sys.argv) < 2:
-        print("Use it like dis: python thorlabs_lookup.py <PartNumber> [Wavelength] [save_dir]")
-        print("i.e.: python thorlabs_lookup.py WG12012 850")
+        print("Use it like dis: python thorlabs_lookup.py <PartNumber> [save_dir]")
+        print("i.e.: python thorlabs_lookup.py WG12012")
         sys.exit(1)
 
     part_number = sys.argv[1]
-    requested_wavelength = sys.argv[2] if len(sys.argv) > 2 else None
-    save_dir = sys.argv[3] if len(sys.argv) > 3 else "."
-    get_raw_data(part_number, requested_wavelength=requested_wavelength, save_dir=save_dir)
+    save_dir = sys.argv[2] if len(sys.argv) > 2 else "."
+    get_raw_data(part_number, save_dir=save_dir)
 
 
 if __name__ == "__main__":

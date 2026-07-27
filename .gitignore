@@ -1,5 +1,6 @@
 #supa secret files
 #put in when done with repo
+.xlsx
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
