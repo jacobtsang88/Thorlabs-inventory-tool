@@ -1,6 +1,6 @@
 import sys
 from pathlib import Path
-from product_family_2 import Prod_fam_2
+from product_family import Prod_fam_2
 from processtxt import txt_to_list
 
 def main():

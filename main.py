@@ -3,20 +3,13 @@ import openpyxl
 import re
 import sys
 import json
-from excel_parser import ExcelParser
 from plotter import Plotter
-from spectrum_parser import SpectrumParser
-from storage import Storage
-from product_family_2 import Prod_fam_2
-from processtxt import txt_to_list
+from product_family import Prod_fam_2
 from download_files import FamilyDownloader
 from exceptions import FamilyDataUnavailableError, NoSpectralDataError, WavelengthOutOfRangeError
 
 with open("families.json", "r") as file:
     inventoryDict = json.load(file)
-
-from pathlib import Path
-import openpyxl
 
 def wavelength_unit_to_nm(header_text: str) -> float:
     """Some Thorlabs raw data sheets (e.g. sapphire, IR components) report

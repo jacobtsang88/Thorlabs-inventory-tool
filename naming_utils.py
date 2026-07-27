@@ -1,12 +1,5 @@
-import re
 from pathlib import PurePosixPath
 from urllib.parse import parse_qsl, urlencode, urlparse, urlsplit, urlunsplit
-
-
-def sanitize_filename_component(value: str | None, default: str = "unknown") -> str:
-    cleaned = re.sub(r"[^A-Za-z0-9._-]+", " ", str(value or default)).strip()
-    cleaned = re.sub(r"\s+", " ", cleaned)
-    return cleaned or default
 
 
 def filename_from_url(url: str, default: str = "download.xlsx") -> str:
