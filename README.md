@@ -1,12 +1,17 @@
-## How to run
+## Setup (only needed once per computer)
 
-### Following only need to do it once (Internet required)
+Requires Python 3.9+.
+
 ```bash
-python3 download_product_json.py
-python3 download_families.py
+python3 -m venv .venv
+source .venv/bin/activate      # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+playwright install chromium
 ```
 
-### Run this afterwards
+## How to run
+
+### Run main.py. First run requires Internet. Subsequent runs will not require Internet.
 ```bash
 python3 main.py [desired product] [center wavelength] [span (optional)]
 ```
